@@ -4,5 +4,7 @@ export default {
     NOT_FOUND: (entity: string) => `${entity} not found`,
     TOO_MANY_REQUESTS: `Too many requests! Please try again after some time`,
     ALREADY_EXIST: (entity: string, identifier: string) => `${entity} already exist with ${identifier}`,
-    INVALID_PHONE_NUMBER: `Invalid phone number`
+    INVALID_PHONE_NUMBER: `Invalid phone number`,
+    INVALID_ACCOUNT_CONFIRMATION_TOKEN_OR_CODE: `Invalid account confirmation token or code`,
+    ACCOUNT_ALREADY_CONFIRMED: `Account already confirmed`
 }
