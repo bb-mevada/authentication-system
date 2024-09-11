@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import apiController from '../controller/apiController'
+import authentication from '../middleware/authentication'
 
 const router = Router()
 
@@ -11,5 +12,7 @@ router.route('/register').post(apiController.register)
 router.route('/confirmation/:token').put(apiController.confirmation)
 
 router.route('/login').post(apiController.login)
+
+router.route('/self-identification').get(authentication, apiController.selfIdentification)
 
 export default router

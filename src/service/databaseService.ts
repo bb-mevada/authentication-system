@@ -23,6 +23,9 @@ export default {
     registerUser: (payload: IUser) => {
         return userModel.create(payload)
     },
+    findUserById: (id: string) => {
+        return userModel.findById(id)
+    },
     findUserByConfirmationTokenAndCode: (token: string, code: string) => {
         return userModel.findOne({
             'accountConfirmation.token': token,
