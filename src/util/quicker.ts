@@ -73,5 +73,13 @@ export default {
     },
     verifyToken: (token: string, secret: string) => {
         return jwt.verify(token, secret)
+    },
+    getDomainFromUrl: (url: string) => {
+        try {
+            const parsedUrl = new URL(url)
+            return parsedUrl.hostname
+        } catch (err) {
+            throw err
+        }
     }
 }

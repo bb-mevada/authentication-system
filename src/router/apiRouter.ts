@@ -15,4 +15,6 @@ router.route('/login').post(apiController.login)
 
 router.route('/self-identification').get(authentication, apiController.selfIdentification)
 
+router.route('/logout').put(authentication, apiController.logout)
+
 export default router
