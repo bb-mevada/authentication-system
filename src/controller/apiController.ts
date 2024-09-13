@@ -3,8 +3,8 @@ import httpResponse from '../util/httpResponse'
 import responseMessage from '../constant/responseMessage'
 import httpError from '../util/httpError'
 import quicker from '../util/quicker'
-import { validateJoiSchema, ValidateLoginBody, ValidateRegisterBody } from '../service/validationService'
-import { IDecryptedJwt, ILoginUserRequestBody, IRefreshToken, IRegisterUserRequestBody, IUser } from '../types/userTypes'
+import { ValidateForgotPasswordBody, validateJoiSchema, ValidateLoginBody, ValidateRegisterBody } from '../service/validationService'
+import { IDecryptedJwt, IForgotPasswordRequestBody, ILoginUserRequestBody, IRefreshToken, IRegisterUserRequestBody, IUser } from '../types/userTypes'
 import databaseService from '../service/databaseService'
 import { EUserRole } from '../constant/userConstant'
 import emailService from '../service/emailService'
@@ -34,6 +34,10 @@ interface ILoginRequest extends Request {
 
 interface ISelfIdentificationRequest extends Request {
     authenticatedUser: IUser
+}
+
+interface IForgotPasswordRequest extends Request {
+    body: IForgotPasswordRequestBody
 }
 
 export default {
@@ -361,6 +365,58 @@ export default {
             }
 
             httpError(next, new Error(responseMessage.UNAUTHORIZED), req, 401)
+        } catch (err) {
+            httpError(next, err, req, 500)
+        }
+    },
+    forgotPassword: async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            // Todo:
+            // 1. Parsing Body
+            const { body } = req as IForgotPasswordRequest
+
+            // 2. Validate Body
+            const { error, value } = validateJoiSchema<IForgotPasswordRequestBody>(ValidateForgotPasswordBody, body)
+            if (error) {
+                return httpError(next, error, req, 422)
+            }
+
+            const { emailAddress } = value
+
+            // 3. Find User by Email Address
+            const user = await databaseService.findUserByEmailAddress(emailAddress)
+            if (!user) {
+                return httpError(next, new Error(responseMessage.NOT_FOUND('user')), req, 404)
+            }
+
+            // 4. Check if user account is confirmed
+            if (!user.accountConfirmation.status) {
+                return httpError(next, new Error(responseMessage.ACCOUNT_CONFIRMATION_REQUIRED), req, 400)
+            }
+
+            // 5. Password Reset token & expiry
+            const token = quicker.generateRandomId()
+            const expiry = quicker.generateResetPasswordExpiry(15)
+
+            // 6. Update User
+            user.passwordReset.token = token
+            user.passwordReset.expiry = expiry
+
+            await user.save()
+
+            // 7. Send Email
+            const resetUrl = `${config.FRONTEND_URL}/reset-password/${token}`
+            const to = [emailAddress]
+            const subject = 'Reset Your Account'
+            const text = `Hey ${user.name}, Please reset your account password by clicking on the link below\n\nLink will expire within 15 Minutes\n\n${resetUrl}`
+
+            emailService.sendEmail(to, subject, text).catch((err) => {
+                logger.error(`EMAIL_SERVICE`, {
+                    meta: err
+                })
+            })
+
+            httpResponse(req, res, 200, responseMessage.SUCCESS)
         } catch (err) {
             httpError(next, err, req, 500)
         }

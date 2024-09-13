@@ -6,6 +6,7 @@ import { getTimezonesForCountry } from 'countries-and-timezones'
 import { v4 } from 'uuid'
 import { randomInt } from 'crypto'
 import jwt from 'jsonwebtoken'
+import dayjs from 'dayjs'
 
 export default {
     getSystemHealth: () => {
@@ -81,5 +82,8 @@ export default {
         } catch (err) {
             throw err
         }
+    },
+    generateResetPasswordExpiry: (minute: number) => {
+        return dayjs().valueOf() + minute * 60 * 1000
     }
 }
