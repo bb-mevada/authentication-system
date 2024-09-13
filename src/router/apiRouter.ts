@@ -17,4 +17,6 @@ router.route('/self-identification').get(authentication, apiController.selfIdent
 
 router.route('/logout').put(authentication, apiController.logout)
 
+router.route('/refresh-token').post(apiController.refreshToken)
+
 export default router

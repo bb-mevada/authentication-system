@@ -2,17 +2,13 @@ import { NextFunction, Request, Response } from 'express'
 import { IUser } from '../types/userTypes'
 import quicker from '../util/quicker'
 import config from '../config/config'
-import { JwtPayload } from 'jsonwebtoken'
+import { IDecryptedJwt } from '../types/userTypes'
 import databaseService from '../service/databaseService'
 import httpError from '../util/httpError'
 import responseMessage from '../constant/responseMessage'
 
 interface IAuthenticatedRequest extends Request {
     authenticatedUser: IUser
-}
-
-interface IDecryptedJwt extends JwtPayload {
-    userId: string
 }
 
 export default async (request: Request, _res: Response, next: NextFunction) => {
