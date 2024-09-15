@@ -23,8 +23,8 @@ export default {
     registerUser: (payload: IUser) => {
         return userModel.create(payload)
     },
-    findUserById: (id: string) => {
-        return userModel.findById(id)
+    findUserById: (id: string, select: string = '') => {
+        return userModel.findById(id).select(select)
     },
     findUserByConfirmationTokenAndCode: (token: string, code: string) => {
         return userModel.findOne({

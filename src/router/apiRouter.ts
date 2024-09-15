@@ -23,4 +23,6 @@ router.route('/forgot-password').put(apiController.forgotPassword)
 
 router.route('/reset-password/:token').put(apiController.resetPassword)
 
+router.route('/change-password').put(authentication, apiController.changePassword)
+
 export default router
