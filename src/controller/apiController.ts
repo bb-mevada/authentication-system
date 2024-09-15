@@ -3,8 +3,22 @@ import httpResponse from '../util/httpResponse'
 import responseMessage from '../constant/responseMessage'
 import httpError from '../util/httpError'
 import quicker from '../util/quicker'
-import { ValidateForgotPasswordBody, validateJoiSchema, ValidateLoginBody, ValidateRegisterBody } from '../service/validationService'
-import { IDecryptedJwt, IForgotPasswordRequestBody, ILoginUserRequestBody, IRefreshToken, IRegisterUserRequestBody, IUser } from '../types/userTypes'
+import {
+    ValidateForgotPasswordBody,
+    validateJoiSchema,
+    ValidateLoginBody,
+    ValidateRegisterBody,
+    ValidateResetPasswordBody
+} from '../service/validationService'
+import {
+    IDecryptedJwt,
+    IForgotPasswordRequestBody,
+    ILoginUserRequestBody,
+    IRefreshToken,
+    IRegisterUserRequestBody,
+    IResetPasswordRequestBody,
+    IUser
+} from '../types/userTypes'
 import databaseService from '../service/databaseService'
 import { EUserRole } from '../constant/userConstant'
 import emailService from '../service/emailService'
@@ -38,6 +52,13 @@ interface ISelfIdentificationRequest extends Request {
 
 interface IForgotPasswordRequest extends Request {
     body: IForgotPasswordRequestBody
+}
+
+interface IResetPasswordRequest extends Request {
+    params: {
+        token: string
+    }
+    body: IResetPasswordRequestBody
 }
 
 export default {
@@ -409,6 +430,70 @@ export default {
             const to = [emailAddress]
             const subject = 'Reset Your Account'
             const text = `Hey ${user.name}, Please reset your account password by clicking on the link below\n\nLink will expire within 15 Minutes\n\n${resetUrl}`
+
+            emailService.sendEmail(to, subject, text).catch((err) => {
+                logger.error(`EMAIL_SERVICE`, {
+                    meta: err
+                })
+            })
+
+            httpResponse(req, res, 200, responseMessage.SUCCESS)
+        } catch (err) {
+            httpError(next, err, req, 500)
+        }
+    },
+    resetPassword: async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            // Todo
+            // * Body Parsing & Validation
+            const { body, params } = req as IResetPasswordRequest
+
+            const { token } = params
+            const { error, value } = validateJoiSchema<IResetPasswordRequestBody>(ValidateResetPasswordBody, body)
+            if (error) {
+                return httpError(next, error, req, 422)
+            }
+
+            const { newPassword } = value
+
+            // * Fetch user by token
+            const user = await databaseService.findUserByResetToken(token)
+            if (!user) {
+                return httpError(next, new Error(responseMessage.NOT_FOUND('user')), req, 404)
+            }
+
+            // * Check if user account is confirmed
+            if (!user.accountConfirmation.status) {
+                return httpError(next, new Error(responseMessage.ACCOUNT_CONFIRMATION_REQUIRED), req, 400)
+            }
+
+            // * Check expiry of the url
+            const storedExpiry = user.passwordReset.expiry
+            const currentTimestamp = dayjs().valueOf()
+
+            if (!storedExpiry) {
+                return httpError(next, new Error(responseMessage.INVALID_REQUEST), req, 400)
+            }
+
+            if (currentTimestamp > storedExpiry) {
+                return httpError(next, new Error(responseMessage.EXPIRED_URL), req, 400)
+            }
+
+            // * Hash new password
+            const hashedPassword = await quicker.hashPassword(newPassword)
+
+            // * User update
+            user.password = hashedPassword
+
+            user.passwordReset.token = null
+            user.passwordReset.expiry = null
+            user.passwordReset.lastResetAt = dayjs().utc().toDate()
+            await user.save()
+
+            // * Email send
+            const to = [user.emailAddress]
+            const subject = 'Reset Account Password Success'
+            const text = `Hey ${user.name}, You account password has been reset successfully.`
 
             emailService.sendEmail(to, subject, text).catch((err) => {
                 logger.error(`EMAIL_SERVICE`, {
