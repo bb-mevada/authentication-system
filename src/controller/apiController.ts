@@ -335,7 +335,7 @@ export default {
                 path: '/api/v1',
                 domain: DOMAIN,
                 sameSite: 'strict',
-                maxAge: 1000 * config.ACCESS_TOKEN.EXPIRY,
+                maxAge: 1000 * config.REFRESH_TOKEN.EXPIRY,
                 httpOnly: true,
                 secure: !(config.ENV === EApplicationEnvironment.DEVELOPMENT)
             })
@@ -366,30 +366,40 @@ export default {
                 if (rft) {
                     const DOMAIN = quicker.getDomainFromUrl(config.SERVER_URL as string)
 
-                    const { userId } = quicker.verifyToken(refreshToken, config.REFRESH_TOKEN.SECRET as string) as IDecryptedJwt
+                    let userId: null | string = null
 
-                    // * Access Token
-                    const accessToken = quicker.generateToken(
-                        {
-                            userId: userId
-                        },
-                        config.ACCESS_TOKEN.SECRET as string,
-                        config.ACCESS_TOKEN.EXPIRY
-                    )
+                    try {
+                        const decryptedJwt = quicker.verifyToken(refreshToken, config.REFRESH_TOKEN.SECRET as string) as IDecryptedJwt
+                        userId = decryptedJwt.userId
+                        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                    } catch (err) {
+                        userId = null
+                    }
 
-                    // Generate new Access Token
-                    res.cookie('accessToken', accessToken, {
-                        path: '/api/v1',
-                        domain: DOMAIN,
-                        sameSite: 'strict',
-                        maxAge: 1000 * config.ACCESS_TOKEN.EXPIRY,
-                        httpOnly: true,
-                        secure: !(config.ENV === EApplicationEnvironment.DEVELOPMENT)
-                    })
+                    if (userId) {
+                        // * Access Token
+                        const accessToken = quicker.generateToken(
+                            {
+                                userId: userId
+                            },
+                            config.ACCESS_TOKEN.SECRET as string,
+                            config.ACCESS_TOKEN.EXPIRY
+                        )
 
-                    return httpResponse(req, res, 200, responseMessage.SUCCESS, {
-                        accessToken
-                    })
+                        // Generate new Access Token
+                        res.cookie('accessToken', accessToken, {
+                            path: '/api/v1',
+                            domain: DOMAIN,
+                            sameSite: 'strict',
+                            maxAge: 1000 * config.ACCESS_TOKEN.EXPIRY,
+                            httpOnly: true,
+                            secure: !(config.ENV === EApplicationEnvironment.DEVELOPMENT)
+                        })
+
+                        return httpResponse(req, res, 200, responseMessage.SUCCESS, {
+                            accessToken
+                        })
+                    }
                 }
             }
 
@@ -436,7 +446,7 @@ export default {
             // 7. Send Email
             const resetUrl = `${config.FRONTEND_URL}/reset-password/${token}`
             const to = [emailAddress]
-            const subject = 'Reset Your Account'
+            const subject = 'Account Password Reset Requested'
             const text = `Hey ${user.name}, Please reset your account password by clicking on the link below\n\nLink will expire within 15 Minutes\n\n${resetUrl}`
 
             emailService.sendEmail(to, subject, text).catch((err) => {
@@ -500,7 +510,7 @@ export default {
 
             // * Email send
             const to = [user.emailAddress]
-            const subject = 'Reset Account Password Success'
+            const subject = 'Account Password Reset'
             const text = `Hey ${user.name}, You account password has been reset successfully.`
 
             emailService.sendEmail(to, subject, text).catch((err) => {
