@@ -238,6 +238,11 @@ export default {
                 return httpError(next, new Error(responseMessage.NOT_FOUND('user')), req, 404)
             }
 
+            // * Check if user account is confirmed
+            if (!user.accountConfirmation.status) {
+                return httpError(next, new Error(responseMessage.ACCOUNT_CONFIRMATION_REQUIRED), req, 400)
+            }
+
             // * Validate Password
             const isValidPassword = await quicker.comparePassword(password, user.password)
             if (!isValidPassword) {
